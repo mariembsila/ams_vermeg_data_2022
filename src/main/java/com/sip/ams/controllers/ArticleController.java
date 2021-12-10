@@ -1,5 +1,6 @@
 package com.sip.ams.controllers;
 
+import java.util.Date;
 import java.util.List;
 
 import javax.validation.Valid;
@@ -22,6 +23,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+
 import org.springframework.web.multipart.MultipartFile;
 @Controller
 @RequestMapping("/article/")
@@ -70,14 +74,18 @@ public class ArticleController {
 		
 		/// part upload
 		StringBuilder fileName = new StringBuilder();
+//		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");  
+//	    Date date = new Date();  
 		MultipartFile file = files[0];
-		Path fileNameAndPath = Paths.get(uploadDirectory,file.getOriginalFilename());
-		fileName.append(file.getOriginalFilename());
+		String articleId= String.valueOf(article.getId());
+		Path fileNameAndPath = Paths.get(uploadDirectory,file.getOriginalFilename()+articleId);
+		fileName.append(file.getOriginalFilename()+articleId);
 		try {
 		Files.write(fileNameAndPath, file.getBytes()); //upload
 		} catch (IOException e) {
 		e.printStackTrace();
 		}
+		
 		article.setPicture(fileName.toString());
 		
 		articleRepository.save(article);
@@ -87,9 +95,16 @@ public class ArticleController {
 
 	@GetMapping("delete/{id}")
 	public String deleteProvider(@PathVariable("id") long id, Model model) {
-		Article artice = articleRepository.findById(id)
+		Article article = articleRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Invalid provider Id:" + id));
-		articleRepository.delete(artice);
+		try {
+			Path fileNameAndPath1 =Paths.get(uploadDirectory,article.getPicture());
+			Files.deleteIfExists(fileNameAndPath1);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		articleRepository.delete(article);
 		return "redirect:../list";
 		//model.addAttribute("articles", articleRepository.findAll());
 		//return "/article/listArticles";
@@ -107,13 +122,32 @@ public class ArticleController {
 
 	@PostMapping("edit")
 	public String updateArticle(@Valid Article article, BindingResult result, Model model,
-			@RequestParam(name = "providerId", required = false) Long p) {
+			@RequestParam(name = "providerId", required = false) Long p,
+			@RequestParam("files") MultipartFile[] files) throws IOException {
 		if (result.hasErrors()) {
 			
 			return "article/updateArticle";
 		}
 		Provider provider = providerRepository.findById(p)
 				.orElseThrow(() -> new IllegalArgumentException("Invalid provider Id:" + p));
+		if (files.length!=0 | files!=null) {
+				Path fileNameAndPath1 =Paths.get(uploadDirectory,article.getPicture());
+				Files.deleteIfExists(fileNameAndPath1);
+			StringBuilder fileName = new StringBuilder();
+//			SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");  
+//		    Date date = new Date();  
+			MultipartFile file = files[0];
+//			String articleId= String.valueOf(article.getId());
+			Path fileNameAndPath = Paths.get(uploadDirectory,file.getOriginalFilename()+String.valueOf(article.getId()));
+			fileName.append(file.getOriginalFilename()+String.valueOf(article.getId()));
+			try {
+			Files.write(fileNameAndPath, file.getBytes()); //upload
+			} catch (IOException e) {
+			e.printStackTrace();
+			}
+			
+			article.setPicture(fileName.toString());
+		}
 		article.setProvider(provider);
 		articleRepository.save(article);
 		return "redirect:../list";
